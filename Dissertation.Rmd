@@ -1,0 +1,355 @@
+---
+title: "Dissertation"
+output: pdf_document
+date: "2023-07-14"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Data
+
+M1
+Bank rates
+GDP growth
+
+```{r load data}
+rates <- read.csv("Bank Rate.csv", header = TRUE)
+M1 <- read.csv("M1data.csv", header = TRUE)
+GDP_growth <- read.csv("GDP growth.csv", header = TRUE)
+GDP <- read.csv("GDP.csv", header = TRUE)
+
+income_ratio <- M1$M1 / GDP$Gross.Domestic.Product
+
+data <- data.frame(Income_ratio = income_ratio, Rates = rates$Rate/100)
+```
+
+## Data
+
+```{r, Descriptive statistics}
+# Descriptive statistics of M1
+m1_summary <- summary(M1$M1)
+
+# Descriptive statistics of GDP
+gdp_summary <- summary(GDP$Gross.Domestic.Product)
+
+# Descriptive statistics of bank rates
+bank_rates_summary <- summary(rates$Rate)
+```
+```{r GDP plot}
+library(zoo)
+library(ggplot2)
+GDP$Date <- as.yearqtr(GDP$Date, format = "%Y Q%q")
+GDP$Date <- as.Date(GDP$Date)
+ggplot(GDP, aes(x = Date, y = Gross.Domestic.Product)) +
+  geom_line(aes(group = 1)) +
+  geom_point() +
+  labs(title = "Trend of Gross Domestic Product (GDP) Over Time",
+       x = "Date",
+       y = "Gross Domestic Product") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y")
+
+```
+
+```{r, gdp zoom in}
+# Read the data from the CSV file
+
+#gdp_data <- read.csv("GDP.csv", header = TRUE)
+
+# Filter the data for the two periods around 2008 and 2020
+data_2008 <- GDP[82:93,]
+data_2020 <- GDP[130:141,]
+
+# Plot the line plots for both periods
+ggplot(data_2008, aes(x=Date, y=Gross.Domestic.Product)) +
+  geom_line(aes(group = 1)) + 
+  geom_point() +
+  ggtitle('Trend of Gross Domestic Product (GDP) Around 2008') +
+  xlab('Date') + ylab('Gross Domestic Product') +
+  theme_bw()
+
+# Plot for 2020 period
+ggplot(data_2020, aes(x=Date, y=Gross.Domestic.Product)) +
+  geom_line(aes(group = 1)) + 
+  geom_point() +
+  ggtitle('Trend of Gross Domestic Product (GDP) Around 2020') +
+  xlab('Date') + ylab('Gross Domestic Product') +
+  theme_bw()
+
+
+
+```
+```{r, gdp stationary}
+
+
+# Load the data from the CSV file
+gdp_data <- read.csv("GDP.csv", header = TRUE)
+
+# Convert the 'Date' column to a Date format
+gdp_data$Date <- as.yearqtr(gdp_data$Date, format = "%Y Q%q")
+gdp_data$Date <- as.Date(gdp_data$Date)
+
+# Compute the first difference of the GDP series
+First_Difference <- diff(gdp_data$Gross.Domestic.Product)
+
+# Add NA to the first position to align the dates
+gdp_data$First_Difference <- c(NA, First_Difference)
+
+# Plot the first differenced series
+ggplot(data = gdp_data, aes(x = Date, y = First_Difference)) +
+  geom_line(aes(group = 1)) +
+  geom_point() +
+  labs(title = "First Difference of Gross Domestic Product (GDP)",
+       x = "Date",
+       y = "First Difference of GDP") +
+  theme_minimal()
+
+
+
+# check for stationary
+library(tseries)
+adf.test(First_Difference)
+# stationary
+```
+
+```{r M1 plot}
+m1_data <- read.csv("M1data.csv", header = TRUE)
+m1_data$Date <- dmy(m1_data$Date)
+ggplot(m1_data, aes(x = Date, y = M1)) +
+  geom_line(color = "black") +
+  geom_point(color = "black") +
+  labs(title = "Trend of M1 Monetary Aggregate Measure Over Time",
+       x = "Date",
+       y = "M1 Monetary Aggregate Measure") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r, bank rate plot}
+bank_rate_data <- read.csv("Bank Rate.csv", header = TRUE)
+bank_rate_data$Date <- as.Date(bank_rate_data$Date, format="%d %b %y")
+ggplot(bank_rate_data, aes(x=Date, y=Rate)) +
+  geom_line(color="black") +
+  geom_point(shape=19, color="black") +
+  ggtitle("Trend of Bank Rate Over Time") +
+  xlab("Date") +
+  ylab("Bank Rate") +
+  theme_minimal() +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+
+
+## Consumers' suplus method
+
+```{r plot data}
+library(ggplot2)
+ggplot(data, aes(x = Rates, y = Income_ratio)) +
+  geom_point() +
+  xlab("Interest Rate") +
+  ylab("Money Ratio")
+
+```
+Perform ordinary least square estimation to the two demand functions to obtain estimates for parameters.
+
+```{r OLS estimation for log-log}
+# Fit the OLS regression model
+model1 <- lm(log(Income_ratio) ~ log(Rates), data = data)
+summary(model1)
+```
+
+```{r OLS estimation for semi-log}
+# Fit the OLS regression model
+model2 <- lm(log(Income_ratio) ~ Rates, data = data)
+summary(model2)
+```
+
+
+```{r log-log demand curve}
+## m = Ar^(-eta)
+# A is selected so the curve passes through the geometric means of the data pairs
+ggplot(data, aes(x = Rates, y = Income_ratio)) +
+  geom_point() +
+  xlab("Interest Rate") +
+  ylab("Money Ratio") +
+  stat_function(fun = function(Rates) 0.262*Rates^(-0.447), color = "red") +
+  theme_bw()
+```
+
+
+```{r semi-log demand curve}
+# m = Be^(-epsilon i)
+ggplot(data, aes(x = Rates, y = Income_ratio)) +
+  geom_point() +
+  xlab("Interest Rate") +
+  ylab("Money Ratio") +
+  stat_function(fun = function(Rates) 2.94*exp(-16.16*Rates), color = "red") +
+  theme_bw()
+```
+
+```{r welfare cost calculated by consumers surplus method}
+nomial_interest_rates <- c(0.01, 0.02, 0.03, 0.05, 0.07, 0.08, 0.09, 0.1)
+wc_loglog_f <- function(i){
+  return (0.212*i^0.553)
+}
+wc_loglog <- wc_loglog_f(nomial_interest_rates)
+wc_semilog_f <- function(i){
+  return(0.182*(1-(1+16.16*i)*exp(-16.16*i)))
+}
+wc_semilog <- wc_semilog_f(nomial_interest_rates)
+```
+
+```{r welfare cost calculated by lucas method1}
+# Define the function representing the differential equation
+diffeq <- function(i, w, params) {
+  phi <- 0.262 * i^(-0.447)
+  psi <- (i / 0.262)^(-1/0.447)
+  dw <- - psi / (1 + w) * (-0.447 * 0.262 * i^(-0.447 - 1))
+  return(list(dw))
+}
+
+initial_condition <- c(w = 0)  # w(0) = 0
+time_points <- seq(0, 0.15, by = 0.01)  # Time points to solve the equation
+pars <- c(A = 0.262, eta = 0.447)
+# Numerically solve the differential equation using ode function
+solution <- ode(y = 0, times = time_points, func = diff_eq)
+
+i <- seq(0.01, 0.15, by = 0.01)
+w1 <- -1 +(1-A*i^(1-0.447))^(0.447/(0.447-1))
+
+
+```
+
+```{r welfare cost calculated by lucas method2}
+A <- 0.262
+eta <- 0.447
+i <- seq(0, 0.4, by = 0.01)
+w1 <- -1 +(1-A*i^(1-eta))^(eta/(eta-1))
+w2 <- wc_loglog_f(i)
+
+# Define the function for the differential equation
+diffeq <- function(t, w, params) {
+  ep <- params[1]
+  return(list(B * exp(-ep*t) * (t * ep + log(1+w))))
+}
+
+# Initial condition for w(π) at t = π (since w′(π) is given)
+w0 <- 0
+
+# Value for parms
+ep <- 16.16
+B <- 2.94
+# Time points for integration (you can adjust as needed)
+times <- seq(0, 0.4, by = 0.01)
+# Integrate the differential equation
+output <- ode(y = w0, times = times, func = diffeq, parms = c(ep, B))
+# Extract the results
+result <- as.data.frame(output)
+result1 <- wc_semilog_f(i)
+```
+
+```{r, plot lucas1 ll}
+# Plot the two lines using ggplot
+# Add the new column to the data frame
+result["cawll"] <- w1
+result["cswll"] <- w2
+result["cswsl"] <- result1
+colnames(result)[2] <- "cawsl"
+
+ggplot(result, aes(x = time)) +
+  geom_line(aes(y = cawll, color = "blue")) +
+  geom_line(aes(y = cswll, color = "red")) +
+  xlab("nomial interest rate") +
+  ylab("welfare cost estimation") +
+  ggtitle("Plot of welfare cost estimation using log-log demand function") +
+  scale_color_identity(breaks = c("blue", "red"),
+                       labels = c("Compensation Variation Approach", "Consumers' Surplus Method"),
+                       guide = "legend") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+```{r, plot lucas2 sl}
+# Plot the two lines using ggplot
+ggplot(result, aes(x = time)) +
+  geom_line(aes(y = cawsl, color = "blue")) +
+  geom_line(aes(y = cswsl, color = "red")) +
+  xlab("nomial interest rate") +
+  ylab("welfare cost estimation") +
+  ggtitle("Plot of welfare cost estimation under semi-log money demand function") +
+  scale_color_identity(breaks = c("blue", "red"),
+                       labels = c("Compensation Variation Approach", "Consumers' Surplus Method"),
+                       guide = "legend") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+```{r, plot lucas3}
+# Plot the two lines using ggplot
+ggplot(result, aes(x = time)) +
+  geom_line(aes(y = cawsl), color = "blue",linetype = "dashed", size = 1.5) +
+  geom_line(aes(y = cswsl), color = "red",linetype = "dotted",  size = 1.5) +
+  geom_line(aes(y = cawll), color = "blue",linetype = "dashed", size = 1.5) +
+  geom_line(aes(y = cswll), color = "red",linetype = "dotted",  size = 1.5) +
+  xlab("nomial interest rate") +
+  ylab("welfare cost estimation") +
+  ggtitle("Comparision plot") +
+  theme_bw()
+```
+
+```{r, long approach}
+adf.test(data$Income_ratio)
+adf.test(data$Rates)
+diffdata <- data.frame(Delta_Ir = diff(data$Income_ratio), Delta_r = diff(data$Rates))
+n <- 146
+k <- 30
+# Calculate the changes in z and i over k+1 periods
+delta_z <- data$Income_ratio[-(1:(k + 1))] - data$Income_ratio[1:(n - (k + 1))]
+delta_i <- data$Rates[-(1:(k + 1))] - data$Rates[1:(n - (k + 1))]
+data3 <- data.frame(Ir = abs(delta_z), R = abs(delta_i))
+data3 <- filter(data3, Ir > 0, R > 0)
+model3 <- lm(log(Ir) ~ log(R), data = data3)
+summary(model3)
+model4 <- lm(log(Ir) ~ R, data = data3)
+summary(model4)
+```
+
+```{r welfare cost calculated by consumers surplus method long horizon}
+nomial_interest_rates <- c(0.01, 0.02, 0.03, 0.05, 0.07, 0.08, 0.09, 0.1)
+wc_loglog_f_l <- function(i){
+  return (0.447*i^0.861)
+}
+wc_loglog_l <- wc_loglog_f_l(nomial_interest_rates)
+wc_semilog_f_l <- function(i){
+  return(0.26975*(1-(1+11.01*i)*exp(- 11.01*i)))
+}
+wc_semilog_l <- wc_semilog_f_l(nomial_interest_rates)
+```
+
+```{r lucas long horizon}
+A <- 2.77
+eta <- 0.139
+i <- c(0.01, 0.02, 0.03, 0.05, 0.07, 0.08, 0.09, 0.1)
+w1_l <- -1 +(1-A*i^(1-eta))^(eta/(eta-1))
+
+# Define the function for the differential equation
+diffeq_l <- function(t, w, params) {
+  ep <- params[1]
+  return(list(B * exp(-ep*t) * (t * ep + log(1+w))))
+}
+
+# Initial condition for w(π) at t = π (since w′(π) is given)
+w0 <- 0
+
+# Value for parms
+ep_l <- 11.01
+B_l <- 1.09
+# Time points for integration (you can adjust as needed)
+times <- i
+# Integrate the differential equation
+output <- ode(y = w0, times = times, func = diffeq, parms = c(ep, B))
+# Extract the results
+result <- as.data.frame(output)
+```
